@@ -1,9 +1,10 @@
 # Wakes the Mendy dashboard bot every minute (Vercel's free plan only allows a daily cron).
-# Each run calls the public tick endpoint 5 times, one minute apart; runs are scheduled every 5 minutes.
+# GitHub delays/skips scheduled runs, so each run keeps calling for ~5h50m (public repos have unlimited minutes).
+# Hourly schedule + a queue of one pending run keeps coverage continuous: when a run ends, the queued one starts.
 name: wake
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/15 * * * *'
     - cron: '17 4 1 * *'      # monthly keep-alive so GitHub never disables the schedule
   workflow_dispatch:
 permissions:
@@ -15,11 +16,12 @@ jobs:
   tick:
     if: github.event.schedule != '17 4 1 * *'
     runs-on: ubuntu-latest
-    timeout-minutes: 9
+    timeout-minutes: 355
     steps:
-      - name: Call /api/tick once a minute
+      - name: Call /api/tick once a minute for ~5h50m
         run: |
-          for i in 1 2 3 4 5; do
+          end=$(( $(date +%s) + 350*60 ))
+          while [ "$(date +%s)" -lt "$end" ]; do
             ( curl -s -m 290 https://mendy-dashboard.vercel.app/api/tick; echo ) &
             sleep 60
           done
