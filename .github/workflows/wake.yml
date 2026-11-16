@@ -10,6 +10,7 @@ on:
 permissions:
   contents: write
   actions: write
+  issues: write
 concurrency:
   group: wake
   cancel-in-progress: false
@@ -19,11 +20,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 355
     steps:
-      - name: Call /api/tick once a minute for ~5h50m
+      - uses: actions/checkout@v4
+      - name: Call /api/tick once a minute for ~5h50m (and raise an alert issue if the bot is down)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           end=$(( $(date +%s) + 349*60 ))
           while [ "$(date +%s)" -lt "$end" ]; do
-            ( curl -s -m 290 https://mendy-dashboard.vercel.app/api/tick; echo ) &
+            ( bash check.sh "$(curl -s -m 290 https://mendy-dashboard.vercel.app/api/tick)" ) &
             sleep 60
           done
           wait
